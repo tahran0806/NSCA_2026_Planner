@@ -1,4 +1,4 @@
-# NSCA 2026 Session Planner
+# NSCA 2026 Session Planner NOLA
 
 A lightweight, offline-capable planner for the **2026 NSCA National Conference** (New Orleans, July 8–11). Browse sessions by day, flag them as Priority 1 / Priority 2 / starred, take per-session notes, and see scheduling conflicts between concurrent sessions — all saved automatically in your own browser.
 
