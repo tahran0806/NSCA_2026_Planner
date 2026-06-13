@@ -18,9 +18,12 @@ const CAT_SHORT = {
 };
 const STORE_KEY = "nsca2026planner.v1";
 const VIEW_MODE_KEY = "nsca2026.dayViewMode";
+const APP_ROUTE_KEY = "nsca2026.appRoute";
 
 let state = load();
-let view = "Wed";           // Wed/Thu/Fri/Sat/plan
+const routeState = loadAppRoute();
+let appScreen = routeState.screen; // landing | app
+let view = routeState.view;        // Wed/Thu/Fri/Sat/plan
 let activeCats = new Set(); // empty = all
 let activePf = new Set();   // p1/p2/star
 let query = "";
@@ -42,6 +45,45 @@ function loadViewMode(){
 }
 function saveViewMode(mode){
   try{ localStorage.setItem(VIEW_MODE_KEY, mode); }catch(e){}
+}
+
+function loadAppRoute(){
+  try{
+    const raw = localStorage.getItem(APP_ROUTE_KEY);
+    if(!raw) return {screen:"landing", view:"Wed"};
+    const o = JSON.parse(raw);
+    if(o.screen === "app" && (DAYS.some(d=>d.key===o.view) || o.view === "plan"))
+      return {screen:"app", view:o.view};
+    if(o.screen === "landing") return {screen:"landing", view:"Wed"};
+    return {screen:"landing", view:"Wed"};
+  }catch(e){ return {screen:"landing", view:"Wed"}; }
+}
+function saveAppRoute(){
+  try{ localStorage.setItem(APP_ROUTE_KEY, JSON.stringify({screen:appScreen, view})); }catch(e){}
+}
+function updateAppVisibility(){
+  const landing = document.getElementById("landing");
+  const shell = document.getElementById("appShell");
+  const onLanding = appScreen === "landing";
+  landing.hidden = !onLanding;
+  shell.hidden = onLanding;
+}
+function goToLanding(){
+  appScreen = "landing";
+  saveAppRoute();
+  updateAppVisibility();
+  window.scrollTo({top:0});
+}
+function enterApp(targetView){
+  appScreen = "app";
+  if(targetView === "plan") view = "plan";
+  else if(DAYS.some(d=>d.key===view)) { /* keep last day */ }
+  else view = "Wed";
+  timelineSelectedId = null;
+  saveAppRoute();
+  updateAppVisibility();
+  renderAll();
+  window.scrollTo({top:0});
 }
 function setDayViewMode(mode){
   dayViewMode = mode === "timeline" ? "timeline" : "list";
@@ -80,7 +122,7 @@ function renderTabs(){
     b.innerHTML = `<span class="dt-day"><span class="dot"></span>${d.label}</span>
       <span class="dt-date">${d.date}</span>
       <span class="dt-count">${n} sessions · ${planN} picked</span>`;
-    b.onclick=()=>{view=d.key;timelineSelectedId=null;renderAll();window.scrollTo({top:0});};
+    b.onclick=()=>{view=d.key;timelineSelectedId=null;saveAppRoute();renderAll();window.scrollTo({top:0});};
     wrap.appendChild(b);
   });
   const totalPlan = EVENTS.filter(inPlan).length;
@@ -90,7 +132,7 @@ function renderTabs(){
   p.innerHTML=`<span class="dt-day"><span class="dot"></span>★ My Schedule</span>
     <span class="dt-date">All days</span>
     <span class="dt-count">${totalPlan} sessions</span>`;
-  p.onclick=()=>{view='plan';timelineSelectedId=null;renderAll();window.scrollTo({top:0});};
+  p.onclick=()=>{view='plan';timelineSelectedId=null;saveAppRoute();renderAll();window.scrollTo({top:0});};
   wrap.appendChild(p);
 }
 
@@ -405,14 +447,33 @@ function doImport(file){
 document.getElementById('search').addEventListener('input',e=>{ query=e.target.value.toLowerCase().trim(); renderMain(); });
 
 const themeBtn=document.getElementById('themeBtn');
+function syncThemeIcons(t){
+  const dark = t === 'dark';
+  document.getElementById('themeIcon').textContent = dark ? '☀' : '☾';
+  document.getElementById('themeTxt').textContent = dark ? 'Light' : 'Dark';
+  const lti = document.getElementById('landingThemeIcon');
+  if(lti) lti.textContent = dark ? '☀' : '☾';
+}
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t);
-  document.getElementById('themeIcon').textContent = t==='dark'?'☀':'☾';
-  document.getElementById('themeTxt').textContent = t==='dark'?'Light':'Dark';
+  syncThemeIcons(t);
   try{localStorage.setItem('nsca2026.theme',t);}catch(e){}
 }
 themeBtn.onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
 applyTheme((()=>{try{return localStorage.getItem('nsca2026.theme')||'light';}catch(e){return 'light';}})());
+
+const landingThemeBtn=document.getElementById('landingThemeBtn');
+if(landingThemeBtn) landingThemeBtn.onclick=()=>applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');
+
+document.querySelectorAll('.landing-entry').forEach(btn=>{
+  btn.onclick=()=>enterApp(btn.dataset.enter);
+});
+
+const brandHome=document.getElementById('brandHome');
+if(brandHome){
+  brandHome.onclick=()=>goToLanding();
+  brandHome.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); goToLanding(); } };
+}
 
 const exportBtn=document.getElementById('exportBtn'), pop=document.getElementById('exportPop');
 exportBtn.onclick=(e)=>{e.stopPropagation();pop.classList.toggle('open');};
@@ -430,4 +491,5 @@ pop.querySelectorAll('button[data-act]').forEach(b=>{
 });
 document.getElementById('importFile').addEventListener('change',e=>{ if(e.target.files[0])doImport(e.target.files[0]); e.target.value=""; });
 
-renderAll();
+updateAppVisibility();
+if(appScreen === 'app') renderAll();

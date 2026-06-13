@@ -10,9 +10,56 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div id="landing" class="landing">
+  <div class="landing-backdrop" aria-hidden="true">
+    <div class="lb-gradient"></div>
+    <svg class="lb-svg lb-fv" viewBox="0 0 800 400" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0,320 C120,280 200,120 320,100 S520,60 800,40" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M0,340 C140,300 220,140 340,120 S540,80 800,60" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/>
+    </svg>
+    <svg class="lb-svg lb-dna" viewBox="0 0 120 320" aria-hidden="true">
+      <path d="M30,0 Q60,40 90,80 T30,160 T90,240 T30,320" fill="none" stroke="currentColor" stroke-width="2"/>
+      <path d="M90,0 Q60,40 30,80 T90,160 T30,240 T90,320" fill="none" stroke="currentColor" stroke-width="2"/>
+      <line x1="30" y1="40" x2="90" y2="40" stroke="currentColor" stroke-width="1.2" opacity=".7"/>
+      <line x1="30" y1="120" x2="90" y2="120" stroke="currentColor" stroke-width="1.2" opacity=".7"/>
+      <line x1="30" y1="200" x2="90" y2="200" stroke="currentColor" stroke-width="1.2" opacity=".7"/>
+      <line x1="30" y1="280" x2="90" y2="280" stroke="currentColor" stroke-width="1.2" opacity=".7"/>
+    </svg>
+    <svg class="lb-svg lb-mol" viewBox="0 0 200 200" aria-hidden="true">
+      <circle cx="100" cy="100" r="14" fill="currentColor" opacity=".35"/>
+      <circle cx="40" cy="60" r="10" fill="currentColor" opacity=".25"/>
+      <circle cx="160" cy="55" r="10" fill="currentColor" opacity=".25"/>
+      <circle cx="55" cy="155" r="10" fill="currentColor" opacity=".25"/>
+      <circle cx="150" cy="150" r="10" fill="currentColor" opacity=".25"/>
+      <line x1="100" y1="100" x2="40" y2="60" stroke="currentColor" stroke-width="1.5" opacity=".4"/>
+      <line x1="100" y1="100" x2="160" y2="55" stroke="currentColor" stroke-width="1.5" opacity=".4"/>
+      <line x1="100" y1="100" x2="55" y2="155" stroke="currentColor" stroke-width="1.5" opacity=".4"/>
+      <line x1="100" y1="100" x2="150" y2="150" stroke="currentColor" stroke-width="1.5" opacity=".4"/>
+    </svg>
+  </div>
+  <div class="landing-inner">
+    <button type="button" class="landing-theme iconbtn" id="landingThemeBtn" title="Toggle light/dark">
+      <span id="landingThemeIcon">☾</span>
+    </button>
+    <h1 class="landing-title display">NSCA Conference 2026 Personalized Schedule</h1>
+    <p class="landing-sub">New Orleans · July 8–11</p>
+    <div class="landing-entries" role="navigation" aria-label="Choose a view">
+      <button type="button" class="landing-entry le-schedule" data-enter="schedule">
+        <span class="le-label">Conference Schedule</span>
+        <span class="le-desc">Browse Wed–Sat sessions · list or timeline view</span>
+      </button>
+      <button type="button" class="landing-entry le-plan" data-enter="plan">
+        <span class="le-label">My Personalized Schedule</span>
+        <span class="le-desc">Your P1, P2, and starred picks across all days</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="appShell" hidden>
 <header class="app">
   <div class="bar">
-    <div class="brand">
+    <div class="brand" id="brandHome" role="button" tabindex="0" title="Back to home">
       <span class="t">NSCA 2026 · Session Planner</span>
       <span class="s">National Conference · <b>New Orleans</b> · Jul 8–11 · Build your schedule, set priorities, take notes</span>
     </div>
@@ -61,6 +108,7 @@
 <footer class="app">
   Source data: NSCA National Conference 2026 schedule. This is a personal planning tool — verify times against the official program on-site.
 </footer>
+</div>
 <script src="data/sessions.js"></script>
 <script src="app.js"></script>
 
