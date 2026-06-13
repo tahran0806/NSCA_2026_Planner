@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NSCA 2026 — Session Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="app">
+  <div class="bar">
+    <div class="brand">
+      <span class="t">NSCA 2026 · Session Planner</span>
+      <span class="s">National Conference · <b>New Orleans</b> · Jul 8–11 · Build your schedule, set priorities, take notes</span>
+    </div>
+    <div class="tools">
+      <label class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="search" type="search" placeholder="Search title, presenter, topic…" autocomplete="off">
+      </label>
+      <button class="iconbtn" id="themeBtn" title="Toggle light/dark">
+        <span id="themeIcon">☾</span><span id="themeTxt">Dark</span>
+      </button>
+      <div class="menu">
+        <button class="iconbtn" id="exportBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 21h14"/></svg>
+          Save / Export
+        </button>
+        <div class="menu-pop" id="exportPop">
+          <div class="hint">Your picks &amp; notes save automatically on this device.</div>
+          <button data-act="json">⤓ Download backup (.json)</button>
+          <button data-act="csv">⤓ Export my plan (.csv)</button>
+          <button data-act="print">⎙ Print / Save as PDF</button>
+          <div class="sep"></div>
+          <button data-act="import">⤒ Restore from backup…</button>
+          <button data-act="clear" style="color:var(--p1)">⨯ Clear all my data</button>
+          <input type="file" id="importFile" accept="application/json" hidden>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="days"><div class="days-inner" id="dayTabs"></div></nav>
+
+<div class="filters" id="filters">
+  <span class="label">Type</span>
+  <div id="catChips" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  <span class="spacer"></span>
+  <span class="label">Show</span>
+  <button class="chip pf" data-pf="p1">P1</button>
+  <button class="chip pf" data-pf="p2">P2</button>
+  <button class="chip pf" data-pf="star">★ Starred</button>
+</div>
+
+<main id="main"></main>
+
+<footer class="app">
+  Source data: NSCA National Conference 2026 schedule. This is a personal planning tool — verify times against the official program on-site.
+</footer>
+<script src="data/sessions.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
