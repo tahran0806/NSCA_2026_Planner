@@ -17,12 +17,15 @@ const CAT_SHORT = {
   "My Presentation":"My Event",
 };
 const STORE_KEY = "nsca2026planner.v1";
+const VIEW_MODE_KEY = "nsca2026.dayViewMode";
 
 let state = load();
 let view = "Wed";           // Wed/Thu/Fri/Sat/plan
 let activeCats = new Set(); // empty = all
 let activePf = new Set();   // p1/p2/star
 let query = "";
+let dayViewMode = loadViewMode(); // list | timeline
+let timelineSelectedId = null;
 
 function load(){
   try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
@@ -33,6 +36,20 @@ function save(){
 }
 function rec(id){ return state[id] || (state[id] = {prio:null, star:false, notes:""}); }
 
+function loadViewMode(){
+  try{ const v = localStorage.getItem(VIEW_MODE_KEY); return v === "timeline" ? "timeline" : "list"; }
+  catch(e){ return "list"; }
+}
+function saveViewMode(mode){
+  try{ localStorage.setItem(VIEW_MODE_KEY, mode); }catch(e){}
+}
+function setDayViewMode(mode){
+  dayViewMode = mode === "timeline" ? "timeline" : "list";
+  timelineSelectedId = null;
+  saveViewMode(dayViewMode);
+  renderMain();
+}
+
 /* ---- time helpers ---- */
 function toMin(t){
   const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i); if(!m) return 0;
@@ -42,6 +59,10 @@ function toMin(t){
 }
 function dur(s,e){ const d=toMin(e)-toMin(s); if(d<=0)return ""; return d>=60?`${Math.floor(d/60)}h${d%60?(" "+(d%60)+"m"):""}`:`${d}m`; }
 function overlaps(a,b){ return a.date===b.date && toMin(a.start)<toMin(b.end) && toMin(b.start)<toMin(a.end); }
+function formatTimeMin(m){
+  const h=Math.floor(m/60), mn=m%60, ap=h>=12?"PM":"AM", h12=h%12||12;
+  return `${h12}:${mn<10?"0":""}${mn} ${ap}`;
+}
 
 /* ---- selection of "in plan" ---- */
 function inPlan(e){ const r=state[e.id]; return e.personal || (r && (r.prio||r.star)); }
@@ -59,7 +80,7 @@ function renderTabs(){
     b.innerHTML = `<span class="dt-day"><span class="dot"></span>${d.label}</span>
       <span class="dt-date">${d.date}</span>
       <span class="dt-count">${n} sessions · ${planN} picked</span>`;
-    b.onclick=()=>{view=d.key;renderAll();window.scrollTo({top:0});};
+    b.onclick=()=>{view=d.key;timelineSelectedId=null;renderAll();window.scrollTo({top:0});};
     wrap.appendChild(b);
   });
   const totalPlan = EVENTS.filter(inPlan).length;
@@ -69,7 +90,7 @@ function renderTabs(){
   p.innerHTML=`<span class="dt-day"><span class="dot"></span>★ My Schedule</span>
     <span class="dt-date">All days</span>
     <span class="dt-count">${totalPlan} sessions</span>`;
-  p.onclick=()=>{view='plan';renderAll();window.scrollTo({top:0});};
+  p.onclick=()=>{view='plan';timelineSelectedId=null;renderAll();window.scrollTo({top:0});};
   wrap.appendChild(p);
 }
 
@@ -106,7 +127,7 @@ function passFilters(e){
   return true;
 }
 
-function cardHTML(e, planContext){
+function cardHTML(e, planContext, detailOpen){
   const r=rec(e.id);
   const planEvents = EVENTS.filter(inPlan).filter(x=>x.id!==e.id);
   const conflicts = (inPlan(e)?planEvents.filter(x=>overlaps(e,x)):[]);
@@ -120,6 +141,7 @@ function cardHTML(e, planContext){
   if(e.personal) cls.push('personal');
   if(r.prio==='p1') cls.push('is-p1');
   if(r.prio==='p2') cls.push('is-p2');
+  const expandOpen = planContext || detailOpen;
   return `<article class="${cls.join(' ')}" data-id="${e.id}">
     <div class="crow">
       <div class="ctime">
@@ -137,13 +159,13 @@ function cardHTML(e, planContext){
           <button class="prio ${r.prio==='p2'?'on-p2':''}" data-prio="p2">P2</button>
           <button class="star ${(r.star||e.personal)?'on':''}" data-star title="Star / favourite">${(r.star||e.personal)?'★':'☆'}</button>
           <button class="linkbtn" data-toggle>
-            <span class="lbl">${(r.notes||planContext)?'Notes &amp; details':'Add notes / details'}</span>
+            <span class="lbl">${(r.notes||planContext||detailOpen)?'Notes &amp; details':'Add notes / details'}</span>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
           </button>
         </div>
       </div>
     </div>
-    <div class="cexpand ${planContext?'open':''}">
+    <div class="cexpand ${expandOpen?'open':''}">
       ${e.desc?`<h5>Session details</h5><p class="cdesc">${esc(e.desc)}</p>`:""}
       ${e.sponsor?`<p class="csponsor">${esc(e.sponsor)}</p>`:""}
       <h5>My session notes</h5>
@@ -155,6 +177,125 @@ function cardHTML(e, planContext){
   </article>`;
 }
 
+function viewToggleHTML(){
+  return `<div class="viewtoggle" role="group" aria-label="Day layout">
+    <button type="button" class="chip vt${dayViewMode==='list'?' on':''}" data-vt="list">List</button>
+    <button type="button" class="chip vt${dayViewMode==='timeline'?' on':''}" data-vt="timeline">Timeline</button>
+  </div>`;
+}
+
+function layoutDayTimeline(events){
+  const sorted=[...events].sort((a,b)=>toMin(a.start)-toMin(b.start)||toMin(a.end)-toMin(b.end));
+  if(!sorted.length) return {rangeStart:0,rangeEnd:0,span:1,items:[]};
+  const rangeStart=Math.min(...sorted.map(e=>toMin(e.start)));
+  const rangeEnd=Math.max(...sorted.map(e=>toMin(e.end)));
+  const span=Math.max(rangeEnd-rangeStart,1);
+  const clusters=[];
+  sorted.forEach(e=>{
+    const idx=clusters.findIndex(c=>c.some(x=>overlaps(e,x)));
+    if(idx>=0) clusters[idx].push(e); else clusters.push([e]);
+  });
+  let merged=true;
+  while(merged){
+    merged=false;
+    for(let i=0;i<clusters.length;i++){
+      for(let j=i+1;j<clusters.length;j++){
+        if(clusters[i].some(a=>clusters[j].some(b=>overlaps(a,b)))){
+          clusters[i]=clusters[i].concat(clusters[j]); clusters.splice(j,1); merged=true; break;
+        }
+      }
+      if(merged) break;
+    }
+  }
+  const items=[];
+  clusters.forEach(cluster=>{
+    const cols=[], cs=[...cluster].sort((a,b)=>toMin(a.start)-toMin(b.start));
+    const placement=new Map();
+    cs.forEach(e=>{
+      let col=0;
+      while(cols[col]&&cols[col].some(x=>overlaps(e,x))) col++;
+      if(!cols[col]) cols[col]=[];
+      cols[col].push(e);
+      placement.set(e.id,col);
+    });
+    const numCols=cols.length;
+    cs.forEach(e=>{
+      const col=placement.get(e.id);
+      items.push({
+        event:e,
+        top:((toMin(e.start)-rangeStart)/span)*100,
+        height:Math.max(((toMin(e.end)-toMin(e.start))/span)*100,3),
+        left:(col/numCols)*100,
+        width:(1/numCols)*100,
+      });
+    });
+  });
+  return {rangeStart,rangeEnd,span,items};
+}
+
+function timelineBlockHTML(e, layout){
+  const r=rec(e.id);
+  const planEvents=EVENTS.filter(inPlan).filter(x=>x.id!==e.id);
+  const conflicts=(inPlan(e)?planEvents.filter(x=>overlaps(e,x)):[]);
+  const catBadge=e.personal
+    ? `<span class="badge b-personal">★ My Event</span>`
+    : `<span class="badge b-cat">${CAT_SHORT[e.category]||e.category}</span>`;
+  const cls=['tl-block','day-'+e.day];
+  if(e.personal) cls.push('personal');
+  if(r.prio==='p1') cls.push('is-p1');
+  if(r.prio==='p2') cls.push('is-p2');
+  if(conflicts.length) cls.push('tl-has-conflict');
+  if(timelineSelectedId===e.id) cls.push('tl-selected');
+  const gap=4;
+  return `<button type="button" class="${cls.join(' ')}" data-id="${e.id}"
+    style="top:${layout.top}%;height:${layout.height}%;left:calc(${layout.left}% + ${gap/2}px);width:calc(${layout.width}% - ${gap}px);"
+    aria-pressed="${timelineSelectedId===e.id?'true':'false'}"
+    title="${esc(e.title)} — ${esc(e.presenter)}">
+    <span class="tl-time mono">${e.start}</span>
+    <span class="tl-badges">${catBadge}${conflicts.length?`<span class="tl-warn" title="Overlaps ${conflicts.length} pick${conflicts.length>1?'s':''}">⚠</span>`:""}</span>
+    <span class="tl-title">${esc(e.title)}</span>
+    <span class="tl-pres">${esc(e.presenter)}</span>
+  </button>`;
+}
+
+function renderTimelineHTML(list){
+  const layout=layoutDayTimeline(list);
+  const ticks=[];
+  const startHour=Math.floor(layout.rangeStart/60)*60;
+  for(let m=startHour;m<=layout.rangeEnd;m+=60){
+    if(m>=layout.rangeStart-1){
+      ticks.push({pct:((m-layout.rangeStart)/layout.span)*100,label:formatTimeMin(m)});
+    }
+  }
+  const axisHtml=ticks.map(t=>`<span class="tl-tick" style="top:${t.pct}%">${t.label}</span>`).join("");
+  const blocksHtml=layout.items.map(item=>timelineBlockHTML(item.event,item)).join("");
+  const pxPerMin=Math.max(layout.span/60*2.8, 2.8);
+  const gridMinH=Math.max(Math.round(layout.span*pxPerMin),320);
+  return `<div class="timeline-wrap">
+    <div class="timeline-axis" aria-hidden="true">${axisHtml}</div>
+    <div class="timeline-grid" style="min-height:${gridMinH}px">${blocksHtml}</div>
+  </div>`;
+}
+
+function bindViewToggle(){
+  document.querySelectorAll('.viewtoggle .vt').forEach(btn=>{
+    btn.onclick=()=>{ if(btn.dataset.vt!==dayViewMode) setDayViewMode(btn.dataset.vt); };
+  });
+}
+
+function bindTimeline(){
+  document.querySelectorAll('.tl-block').forEach(btn=>{
+    btn.onclick=()=>{
+      timelineSelectedId = timelineSelectedId===btn.dataset.id ? null : btn.dataset.id;
+      renderMain();
+      if(timelineSelectedId){
+        const card=document.querySelector('.card[data-id="'+timelineSelectedId+'"]');
+        if(card) card.scrollIntoView({behavior:'smooth',block:'nearest'});
+      }
+    };
+  });
+}
+
 function renderMain(){
   const main=document.getElementById('main');
   if(view==='plan'){ renderPlan(main); bindCards(); return; }
@@ -162,14 +303,22 @@ function renderMain(){
     .sort((a,b)=>toMin(a.start)-toMin(b.start));
   const d = DAYS.find(x=>x.key===view);
   let html = `<div class="dayhead"><span class="dh-bar dh-${view}"></span>
-    <span class="dh-title">${d.label}</span><span class="dh-date">${d.date}, 2026 · ${list.length} session${list.length!==1?'s':''}</span></div>`;
+    <span class="dh-title">${d.label}</span><span class="dh-date">${d.date}, 2026 · ${list.length} session${list.length!==1?'s':''}</span>
+    <span class="dayhead-spacer"></span>${viewToggleHTML()}</div>`;
   if(!list.length){
     html += `<div class="empty"><div class="big">Nothing matches your filters</div>
       <div class="sub">Try clearing a type or priority filter, or your search term.</div></div>`;
+  } else if(dayViewMode==='timeline'){
+    html += renderTimelineHTML(list);
+    const sel=list.find(e=>e.id===timelineSelectedId);
+    if(sel) html += cardHTML(sel,false,true);
+    else timelineSelectedId=null;
   } else {
     html += list.map(e=>cardHTML(e,false)).join("");
   }
   main.innerHTML=html;
+  bindViewToggle();
+  if(dayViewMode==='timeline') bindTimeline();
   bindCards();
 }
 
