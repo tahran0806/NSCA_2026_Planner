@@ -479,6 +479,9 @@ document.querySelectorAll('.landing-entry').forEach(btn=>{
   btn.onclick=()=>enterApp(btn.dataset.enter);
 });
 
+const homeBtn=document.getElementById('homeBtn');
+if(homeBtn) homeBtn.onclick=()=>goToLanding();
+
 const brandHome=document.getElementById('brandHome');
 if(brandHome){
   brandHome.onclick=()=>goToLanding();
