@@ -61,18 +61,27 @@ function loadAppRoute(){
 function saveAppRoute(){
   try{ localStorage.setItem(APP_ROUTE_KEY, JSON.stringify({screen:appScreen, view})); }catch(e){}
 }
+function scrollScreenTop(){
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
 function updateAppVisibility(){
   const landing = document.getElementById("landing");
   const shell = document.getElementById("appShell");
   const onLanding = appScreen === "landing";
   landing.hidden = !onLanding;
   shell.hidden = onLanding;
+  landing.setAttribute("aria-hidden", onLanding ? "false" : "true");
+  shell.setAttribute("aria-hidden", onLanding ? "true" : "false");
+  if(onLanding){ landing.removeAttribute("inert"); shell.setAttribute("inert",""); }
+  else{ landing.setAttribute("inert",""); shell.removeAttribute("inert"); }
 }
 function goToLanding(){
   appScreen = "landing";
   saveAppRoute();
   updateAppVisibility();
-  window.scrollTo({top:0});
+  scrollScreenTop();
 }
 function enterApp(targetView){
   appScreen = "app";
@@ -83,7 +92,8 @@ function enterApp(targetView){
   saveAppRoute();
   updateAppVisibility();
   renderAll();
-  window.scrollTo({top:0});
+  scrollScreenTop();
+  requestAnimationFrame(scrollScreenTop);
 }
 function setDayViewMode(mode){
   dayViewMode = mode === "timeline" ? "timeline" : "list";
